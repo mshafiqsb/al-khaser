@@ -83,7 +83,7 @@
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -156,6 +156,7 @@
     <None Include="..\.gitignore" />
     <None Include="..\LICENSE" />
     <None Include="..\README.md" />
+    <None Include="macros.vba" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Al-khaser.cpp" />
@@ -184,6 +185,7 @@
     <ClCompile Include="Anti Debug\SeDebugPrivilege.cpp" />
     <ClCompile Include="Anti Debug\SetHandleInformation_API.cpp" />
     <ClCompile Include="Anti Debug\SoftwareBreakpoints.cpp" />
+    <ClCompile Include="Anti Debug\TLS_callbacks.cpp" />
     <ClCompile Include="Anti Debug\UnhandledExceptionFilter_Handler.cpp" />
     <ClCompile Include="Anti Dump\ErasePEHeaderFromMemory.cpp" />
     <ClCompile Include="Anti Dump\SizeOfImage.cpp" />
@@ -202,6 +204,7 @@
     <ClCompile Include="Code Injections\RtlCreateUserThread.cpp" />
     <ClCompile Include="Code Injections\SetWindowsHooksEx.cpp" />
     <ClCompile Include="Shared\Common.cpp" />
+    <ClCompile Include="Shared\log.cpp" />
     <ClCompile Include="Shared\Utils.cpp" />
     <ClCompile Include="timing-attacks\timing.cpp" />
   </ItemGroup>
@@ -230,6 +233,7 @@
     <ClInclude Include="Anti Debug\SeDebugPrivilege.h" />
     <ClInclude Include="Anti Debug\SetHandleInformation_API.h" />
     <ClInclude Include="Anti Debug\SoftwareBreakpoints.h" />
+    <ClInclude Include="Anti Debug\TLS_callbacks.h" />
     <ClInclude Include="Anti Debug\UnhandledExceptionFilter_Handler.h" />
     <ClInclude Include="Anti Dump\ErasePEHeaderFromMemory.h" />
     <ClInclude Include="Anti Dump\SizeOfImage.h" />
@@ -248,6 +252,7 @@
     <ClInclude Include="Code Injections\RtlCreateUserThread.h" />
     <ClInclude Include="Code Injections\SetWindowsHooksEx.h" />
     <ClInclude Include="Shared\Common.h" />
+    <ClInclude Include="Shared\log.h" />
     <ClInclude Include="Shared\Main.h" />
     <ClInclude Include="Shared\Utils.h" />
     <ClInclude Include="Shared\VersionHelpers.h" />

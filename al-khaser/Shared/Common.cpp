@@ -1,13 +1,11 @@
-#include <Windows.h>
-#include <stdio.h>
-#include <tchar.h>
-#include <strsafe.h>
+#include "Common.h"
 #include "Utils.h"
+#include "log.h"
 
-VOID print_detected() 
+VOID print_detected()
 {
 	/* Get handle to standard output */
-	HANDLE nStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);  
+	HANDLE nStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
 	SecureZeroMemory(&ConsoleScreenBufferInfo, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
 
@@ -16,14 +14,14 @@ VOID print_detected()
 	WORD OriginalColors = *(&ConsoleScreenBufferInfo.wAttributes);
 
 	SetConsoleTextAttribute(nStdHandle, 12);
-	_tprintf(TEXT("[ BAD ].\n"));
+	_tprintf(TEXT("[ BAD  ]\n"));
 	SetConsoleTextAttribute(nStdHandle, OriginalColors);
 }
 
-VOID print_not_detected() 
+VOID print_not_detected()
 {
 	/* Get handle to standard output */
-	HANDLE nStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);  
+	HANDLE nStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
 	SecureZeroMemory(&ConsoleScreenBufferInfo, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
 
@@ -48,23 +46,54 @@ VOID print_category(TCHAR* text)
 	WORD OriginalColors = *(&ConsoleScreenBufferInfo.wAttributes);
 
 	SetConsoleTextAttribute(nStdHandle, 13);
-	_tprintf(TEXT("			---[%s]---\n"), text);
+	_tprintf(TEXT("\n-------------------------[%s]-------------------------\n"), text);
 	SetConsoleTextAttribute(nStdHandle, OriginalColors);
 }
 
-VOID exec_check(int(*callback)(), TCHAR* text_log) 
+VOID print_results(int result, TCHAR* szMsg)
 {
-	int check_result;
+	_tprintf(TEXT("[*] %s"), szMsg);
 
-	/* Call our check */
-	check_result = callback();
-
-	_tprintf(TEXT("[*] %s"), text_log);
-	if (check_result == TRUE)
+	/* align the result according to the length of the text */
+	int spaces_to_padd = 95 - _tcslen(szMsg);
+	while (spaces_to_padd > 0) {
+		_tprintf(TEXT(" "));
+		spaces_to_padd--;
+	}
+	
+	if (result == TRUE)
 		print_detected();
 	else
 		print_not_detected();
+
+	/* log to file*/
+	TCHAR buffer[256] = _T("");
+	_stprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), _T("[*] %s -> %d"), szMsg, result);
+	LOG_PRINT(buffer);
 }
+
+VOID exec_check(int(*callback)(), TCHAR* szMsg) 
+{
+	/* Call our check */
+	int result = callback();
+
+	/* Print / Log the result */
+	if (szMsg)
+		print_results(result, szMsg);
+}
+
+VOID resize_console_window()
+{
+	// Change the window title:
+	SetConsoleTitle(_T("Al-Khaser - by Lord Noteworthy"));
+
+	// Get console window handle
+	HWND wh = GetConsoleWindow();
+
+	// Move window to required position
+	MoveWindow(wh, 100, 100, 900, 900, TRUE);
+}
+
 
 VOID print_os()
 {
@@ -72,7 +101,7 @@ VOID print_os()
 	if (GetOSDisplayString(szOS))
 	{
 		_tcscpy_s(szOS, MAX_PATH, szOS);
-		_tprintf(_T("\n%s\n"), szOS);
+		_tprintf(_T("\nOS: %s\n"), szOS);
 	}
 }
 
@@ -123,4 +152,15 @@ TCHAR* ascii_to_wide_str(CHAR* lpMultiByteStr)
 	INT iNumChars =  MultiByteToWideChar(CP_ACP, 0, lpMultiByteStr, -1, lpWideCharStr, iSizeRequired);
 
 	return lpWideCharStr;
+}
+
+CHAR* wide_str_to_multibyte (TCHAR* lpWideStr)
+{
+	errno_t status;
+	int *pRetValue = NULL;
+	CHAR *mbchar = NULL;
+	size_t sizeInBytes = 0;
+	
+	status = wctomb_s(pRetValue, mbchar, sizeInBytes, *lpWideStr);
+	return mbchar;
 }

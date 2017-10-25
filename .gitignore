@@ -29,7 +29,6 @@
 *.lib
 
 # Executables
-*.exe
 *.out
 *.app
 
@@ -62,3 +61,6 @@ bld/
 
 # Visual C++ Solution
 *.VC.db
+
+# Alkhaser log file
+log.txt

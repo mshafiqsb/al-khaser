@@ -21,7 +21,7 @@ BOOL Is_RegKeyValueExists(HKEY hKey, TCHAR* lpSubKey, TCHAR* lpValueName, TCHAR*
 BOOL Is_RegKeyExists(HKEY hKey, TCHAR* lpSubKey);
 BOOL is_FileExists(TCHAR* szPath);
 BOOL is_DirectoryExists(TCHAR* szPath);
-BOOL check_mac_addr(CHAR* szMac);
+BOOL check_mac_addr(TCHAR* szMac);
 BOOL check_adapter_name(TCHAR* szName);
 BOOL GetOSDisplayString(LPTSTR pszOS);
 DWORD GetProccessIDByName(TCHAR* szProcessNameTarget);
@@ -35,6 +35,7 @@ ULONG get_idt_base();
 ULONG get_ldt_base();
 ULONG get_gdt_base();
 UCHAR* get_str_base();
+BOOL IsElevated();
 
 #define	MALLOC(x)	HeapAlloc(GetProcessHeap(), 0, x)
 #define FREE(x)		HeapFree(GetProcessHeap(), 0, x)

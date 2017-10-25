@@ -69,7 +69,7 @@ BOOL is_DirectoryExists(TCHAR* szPath)
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES) && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-BOOL check_mac_addr(CHAR* szMac)
+BOOL check_mac_addr(TCHAR* szMac)
 {
 	BOOL bResult = FALSE;
 	PIP_ADAPTER_INFO pAdapterInfo;
@@ -93,11 +93,19 @@ BOOL check_mac_addr(CHAR* szMac)
         }
     }
 
+	// Now, we can call GetAdaptersInfo
 	if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_SUCCESS)
 	{
+		// Convert the given mac address to an array of multibyte chars so we can compare.
+		CHAR szMacMultiBytes [4];
+		for (int i = 0; i < 4; i++) {
+			szMacMultiBytes[i] = (CHAR)szMac[i];
+		}
+
 		while(pAdapterInfo)
 		{
-			if (pAdapterInfo->AddressLength == 6 && !memcmp(szMac, pAdapterInfo->Address, 3))
+
+			if (pAdapterInfo->AddressLength == 6 && !memcmp(szMacMultiBytes, pAdapterInfo->Address, 3))
 			{
 				bResult = TRUE;
 				break;
@@ -629,7 +637,7 @@ BOOL InitWMI(IWbemServices **pSvc, IWbemLocator **pLoc)
 	}
 
 	// Obtain the initial locator to WMI 
-	hres = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, IID_IWbemLocator, (LPVOID *)pLoc);
+	hres = CoCreateInstance(CLSID_WbemLocator, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(pLoc));
 	if (FAILED(hres)) {
 		print_last_error(_T("CoCreateInstance"));
 		CoUninitialize();
@@ -747,4 +755,25 @@ UCHAR* get_str_base()
 
 	// printf("STR base: 0x%02x%02x%02x%02x\n", mem[0], mem[1], mem[2], mem[3]);
 	return mem;
+}
+
+/*
+Check if a process is running with admin rights
+*/
+BOOL IsElevated() 
+{
+	BOOL fRet = FALSE;
+	HANDLE hToken = NULL;
+
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+		TOKEN_ELEVATION Elevation;
+		DWORD cbSize = sizeof(TOKEN_ELEVATION);
+		if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) {
+			fRet = Elevation.TokenIsElevated;
+		}
+	}
+	if (hToken) {
+		CloseHandle(hToken);
+	}
+	return fRet;
 }

@@ -1,4 +1,4 @@
-##Al-Khaser v0.60
+## Al-Khaser v0.70
 
 ![Logo](https://www.mindmeister.com/files/avatars/0035/8332/original/avatar.jpg)
 
@@ -19,14 +19,24 @@
 ## Introduction
 
 al-khaser is a PoC malware with good intentions that aimes to stress your anti-malware system.
-It performs a bunch of nowadays malwares tricks and the goal is to see if you catch them all.
+It performs a bunch of nowadays malwares tricks and the goal is to see if you stay under the radar.
+
+![Logo](https://i.imgur.com/jEFhsJT.png)
+
+
+## Download
+
+You can download the last release [here](https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser.exe?raw=true).
+
 
 ## Possible uses
+
 - You are making an anti-debug plugin and you want to check its effectiveness.
 - You want to ensure that your sandbox solution is hidden enough.
 - Or you want to ensure that your malware analysis environement is well hidden.
 
 Please, if you encounter any of the anti-analysis tricks which you have seen in a malware, don't hesitate to contribute.
+
 
 ## Features
 ### Anti-debugging attacks
@@ -54,24 +64,32 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 - Parent Process (Explorer.exe)
 - SeDebugPrivilege (Csrss.exe)
 - NtYieldExecution / SwitchToThread
+- TLS callbacks
 
 ### Anti-Dumping
 - Erase PE header from memory
 - SizeOfImage
 
 ### Timing Attacks [Anti-Sandbox]
+- RDTSC (with CPUID to force a VM Exit)
+- RDTSC (Locky version with GetProcessHeap & CloseHandle)
 - Sleep -> SleepEx -> NtDelayExecution
 - Sleep (in a loop a small delay)
-- Sleep and check if accelerated (todo)
+- Sleep and check if time was accelerated (GetTickCount)
 - SetTimer (Standard Windows Timers)
 - timeSetEvent (Multimedia Timers)
 - WaitForSingleObject -> WaitForSingleObjectEx -> NtWaitForSingleObject
 - WaitForMultipleObjects -> WaitForMultipleObjectsEx -> NtWaitForMultipleObjects (todo)
+- IcmpSendEcho (CCleaner Malware)
 - CreateWaitableTimer (todo)
 - CreateTimerQueueTimer (todo)
 - Big crypto loops (todo)
 
-### Human Interaction [Anti-Sandbox]
+### Human Interaction / Generic [Anti-Sandbox]
+- Mouse movement
+- Total Physical memory (GlobalMemoryStatusEx)
+- Disk size using DeviceIoControl (IOCTL_DISK_GET_LENGTH_INFO)
+- Disk size using GetDiskFreeSpaceEx (TotalNumberOfBytes)
 - Mouse (Single click / Double click) (todo)
 - DialogBox (todo)
 - Scrolling (todo)
@@ -94,7 +112,7 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 	- HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port 2\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0 (Identifier) (VMWARE)
 
 - **Registry Keys artifacts**
-	- "HARDWARE\\ACPI\\RSDT\\VBOX__"
+	- "HARDWARE\\ACPI\\DSDT\\VBOX__"
 	- "HARDWARE\\ACPI\\FADT\\VBOX__"
 	- "HARDWARE\\ACPI\\RSDT\\VBOX__"
 	- "SOFTWARE\\Oracle\\VirtualBox Guest Additions"
@@ -131,7 +149,7 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 	- "%PROGRAMFILES%\\oracle\\virtualbox guest additions\\"
 	- "%PROGRAMFILES%\\VMWare\\"
 
-**Memory artifacts**
+- **Memory artifacts**
 	- Interupt Descriptor Table (IDT) location
 	- Local Descriptor Table (LDT) location
 	- Global Descriptor Table (GDT) location
@@ -200,6 +218,16 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 	- vmcheck.dll (Virtual PC)
 	- wpespy.dll (WPE Pro)
 
+- **CPU**
+	- Hypervisor presence using (EAX=0x1)
+	- Hypervisor vendor using (EAX=0x40000000)
+		- "KVMKVMKVM\0\0\0"	(KVM)
+		- "Microsoft Hv"	(Microsoft Hyper-V or Windows Virtual PC)
+		- "VMwareVMware"	(VMware)
+		- "XenVMMXenVMM"	(Xen)
+		- "prl hyperv  "	( Parallels)
+		 -"VBoxVBoxVBox"	( VirtualBox)
+
 
 ### Anti-Analysis
 - **Processes**
@@ -209,6 +237,10 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 	- ProcessHacker / SysAnalyzer / HookExplorer / SysInspector
 	- ImportREC / PETools / LordPE
 	- JoeBox Sandbox
+
+### Macro malware attacks
+- Document_Close / Auto_Close.
+- Application.RecentFiles.Count 
 
 
 ### Code/DLL Injections techniques
@@ -222,11 +254,12 @@ Please, if you encounter any of the anti-analysis tricks which you have seen in 
 
 ## Contributors
 - [mrexodia](http://mrexodia.cf): Main developer of [x64dbg](http://x64dbg.com/)
-
+- [JoeSecurity](https://github.com/joesecurity/pafishmacro): PafishMacro
 
 ## References
 - An Anti-Reverse Engineering Guide By Josh Jackson.
 - Anti-Unpacker Tricks By Peter Ferrie.
 - The Art Of Unpacking By Mark Vincent Yason.
-- Walied Assar's blog http://waleedassar.blogspot.de/
-- Pafish tool: https://github.com/a0rtega/pafish
+- Walied Assar's blog http://waleedassar.blogspot.de/.
+- Pafish tool: https://github.com/a0rtega/pafish.
+

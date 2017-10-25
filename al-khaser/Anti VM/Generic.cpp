@@ -30,14 +30,15 @@ VOID loaded_dlls()
 	WORD dwlength = sizeof(szDlls) / sizeof(szDlls[0]);
 	for (int i = 0; i < dwlength; i++)
 	{
-		_tprintf(TEXT("[*] Checking if process loaded modules contains: %s "), szDlls[i]);
+		TCHAR msg[256] = _T("");
+		_stprintf_s(msg, sizeof(msg) / sizeof(TCHAR), _T("Checking if process loaded modules contains: %s "), szDlls[i]);
 
 		/* Check if process loaded modules contains the blacklisted dll */
 		hDll = GetModuleHandle(szDlls[i]);
 		if (hDll == NULL)
-			print_not_detected();
+			print_results(FALSE, msg);
 		else
-			print_detected();	
+			print_results(TRUE, msg);
 	}
 }
 
@@ -203,6 +204,7 @@ BOOL disk_size_wmi()
 	BOOL bStatus = FALSE;
 	HRESULT hRes;
 	BOOL bFound = FALSE;
+	INT64 minHardDiskSize = (80LL * (1024LL * (1024LL * (1024LL))));
 
 	// Init WMI
 	bStatus = InitWMI(&pSvc, &pLoc);
@@ -229,7 +231,7 @@ BOOL disk_size_wmi()
 				if (V_VT(&vtProp) != VT_NULL) {
 
 					// Do our comparaison
-					if (vtProp.uintVal < 80 * 1024 * 1024 * 1024) { // Less than 80GB
+					if (vtProp.llVal < minHardDiskSize) { // Less than 80GB
 						bFound = TRUE; break;
 					}
 
@@ -251,6 +253,54 @@ BOOL disk_size_wmi()
 }
 
 
+/*
+DeviceIoControl works with disks directly rather than partitions (GetDiskFreeSpaceEx)
+We can send IOCTL_DISK_GET_LENGTH_INFO code to get the raw byte size of the physical disk
+*/
+BOOL dizk_size_deviceiocontrol()
+{
+	HANDLE hDevice = INVALID_HANDLE_VALUE;
+	BOOL bResult = FALSE;
+	GET_LENGTH_INFORMATION size = { 0 };
+	DWORD lpBytesReturned = 0;
+	LONGLONG minHardDiskSize = (80LL * (1024LL * (1024LL * (1024LL))));
+
+	// This technique required admin priviliege starting from Vira Windows Vista
+	if (!IsElevated() && IsWindowsVistaOrGreater())
+		return FALSE;
+	
+	hDevice = CreateFile(_T("\\\\.\\PhysicalDrive0"),
+		GENERIC_READ,                // no access to the drive
+		FILE_SHARE_READ, 			// share mode
+		NULL,						// default security attributes
+		OPEN_EXISTING,				// disposition
+		0,							// file attributes
+		NULL);						// do not copy file attributes
+
+	if (hDevice == INVALID_HANDLE_VALUE) {
+		CloseHandle(hDevice);
+		return FALSE;
+	}
+
+	bResult = DeviceIoControl(
+		hDevice,					// device to be queried
+		IOCTL_DISK_GET_LENGTH_INFO, // operation to perform
+		NULL, 0,					// no input buffer
+		&size, sizeof(GET_LENGTH_INFORMATION),
+		&lpBytesReturned,			// bytes returned
+		(LPOVERLAPPED) NULL);   // synchronous I/O
+
+	if (bResult != NULL) {
+		if (size.Length.QuadPart < minHardDiskSize) // 80GB
+			bResult = TRUE;
+		else
+			bResult = FALSE;
+	}
+
+	CloseHandle(hDevice);
+	return bResult;
+}
+
 
 BOOL setupdi_diskdrive()
 {
@@ -270,12 +320,14 @@ BOOL setupdi_diskdrive()
 
 	// Enumerate through all devices in Set.
 	DeviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+
+	/* Init some vars */
+	DWORD dwPropertyRegDataType;
+	LPTSTR buffer = NULL;
+	DWORD dwSize = 0;
+
 	for (i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &DeviceInfoData); i++)
 	{
-		DWORD dwPropertyRegDataType;
-		LPTSTR buffer = NULL;
-		DWORD dwSize = 0;
-
 		while (!SetupDiGetDeviceRegistryProperty(hDevInfo, &DeviceInfoData, SPDRP_HARDWAREID,
 			&dwPropertyRegDataType, (PBYTE)buffer, dwSize, &dwSize))
 		{
@@ -292,14 +344,18 @@ BOOL setupdi_diskdrive()
 		}
 
 		// Do our comparaison
-		if (!StrStrI(buffer, _T("vbox")) || !StrStrI(buffer, _T("vmware")) || !StrStrI(buffer, _T("qemu"))
-			|| !StrStrI(buffer, _T("vbox"))) {
-			LocalFree(buffer);
+		if ((StrStrI(buffer, _T("vbox")) != NULL) ||
+			(StrStrI(buffer, _T("vmware")) != NULL) || 
+			(StrStrI(buffer, _T("qemu")) != NULL) ||
+			(StrStrI(buffer, _T("virtual")) != NULL))
+		{
 			bFound =  TRUE;
 			break;
-
 		}
 	}
+
+	if (buffer)
+		LocalFree(buffer);
 
 	if (GetLastError() != NO_ERROR && GetLastError() != ERROR_NO_MORE_ITEMS)
 		return FALSE;
@@ -315,3 +371,146 @@ BOOL setupdi_diskdrive()
 }
 
 
+/*
+Check if there is any mouse movement in the sandbox.
+*/
+BOOL mouse_movement() {
+
+	POINT positionA = {};
+	POINT positionB = {};
+
+	/* Retrieve the position of the mouse cursor, in screen coordinates */
+	GetCursorPos(&positionA);
+
+	/* Wait a moment */
+	Sleep(5000);
+
+	/* Retrieve the poition gain */
+	GetCursorPos(&positionB);
+
+	if ((positionA.x == positionB.x) && (positionA.y == positionB.y))
+		/* Probably a sandbox, because mouse position did not change. */
+		return TRUE;
+
+	else 
+		return FALSE;
+}
+
+/*
+Check if the machine have enough memory space, usually VM get a small ammount,
+one reason if because several VMs are running on the same servers so they can run
+more tasks at the same time.
+*/
+BOOL memory_space()
+{
+	DWORDLONG ullMinRam = (1024LL * (1024LL * (1024LL * 1LL))); // 1GB
+	MEMORYSTATUSEX statex = {0};
+
+	statex.dwLength = sizeof(statex);
+	GlobalMemoryStatusEx(&statex);
+
+	return (statex.ullTotalPhys < ullMinRam) ? TRUE : FALSE;
+}
+
+/*
+This trick consists of getting information about total amount of space.
+This can be used to expose a sandbox.
+*/
+BOOL disk_size_getdiskfreespace()
+{
+	ULONGLONG minHardDiskSize = (80ULL * (1024ULL * (1024ULL * (1024ULL))));
+	LPCWSTR pszDrive = NULL;
+	BOOL bStatus = FALSE;
+
+	// 64 bits integer, low and high bytes
+	ULARGE_INTEGER totalNumberOfBytes;
+
+	// If the function succeeds, the return value is nonzero. If the function fails, the return value is 0 (zero).
+	bStatus = GetDiskFreeSpaceEx(pszDrive, NULL, &totalNumberOfBytes, NULL);
+	if (bStatus) {
+		if (totalNumberOfBytes.QuadPart < minHardDiskSize)  // 80GB
+			return TRUE;
+	}
+
+	return FALSE;;
+}
+
+/*
+Sleep and check if time have been accelerated
+*/
+BOOL accelerated_sleep()
+{
+	DWORD dwStart = 0, dwEnd = 0, dwDiff = 0;
+	DWORD dwMillisecondsToSleep = 60*1000;
+
+	/* Retrieves the number of milliseconds that have elapsed since the system was started */
+	dwStart = GetTickCount();
+
+	/* Let's sleep 1 minute so Sandbox is interested to patch that */
+	Sleep(dwMillisecondsToSleep);
+
+	/* Do it again */
+	dwEnd = GetTickCount();
+
+	/* If the Sleep function was patched*/
+	dwDiff = dwEnd - dwStart;
+	if (dwDiff > dwMillisecondsToSleep - 1000) // substracted 1s just to be sure
+		return FALSE;
+	else 
+		return TRUE;
+}
+
+/*
+The CPUID instruction is a processor supplementary instruction (its name derived from 
+CPU IDentification) for the x86 architecture allowing software to discover details of 
+the processor. By calling CPUID with EAX =1, The 31bit of ECX register if set will
+reveal the precense of a hypervisor.
+*/
+BOOL cpuid_is_hypervisor()
+{
+	INT CPUInfo[4] = { -1 };
+
+	/* Query hypervisor precense using CPUID (EAX=1), BIT 31 in ECX */
+	__cpuid(CPUInfo, 1);
+	if ((CPUInfo[2] >> 31) & 1) 
+		return TRUE;
+	else
+		return FALSE;
+}
+
+
+/*
+If HV presence confirmed then it is good to know which type of hypervisor we have
+When CPUID is called with EAX=0x40000000, cpuid return the hypervisor signature.
+*/
+BOOL cpuid_hypervisor_vendor()
+{
+	INT CPUInfo[4] = {-1};
+	CHAR szHypervisorVendor[0x40];
+	TCHAR* szBlacklistedHypervisors[] = {
+		_T("KVMKVMKVM\0\0\0"),	/* KVM */
+		_T("Microsoft Hv"),		/* Microsoft Hyper-V or Windows Virtual PC */
+		_T("VMwareVMware"),		/* VMware */
+		_T("XenVMMXenVMM"),		/* Xen */
+		_T("prl hyperv  "),		/* Parallels */
+		_T("VBoxVBoxVBox"),		/* VirtualBox */
+	};
+	WORD dwlength = sizeof(szBlacklistedHypervisors) / sizeof(szBlacklistedHypervisors[0]);
+
+	// __cpuid with an InfoType argument of 0 returns the number of
+	// valid Ids in CPUInfo[0] and the CPU identification string in
+	// the other three array elements. The CPU identification string is
+	// not in linear order. The code below arranges the information 
+	// in a human readable form.
+	__cpuid(CPUInfo, 0x40000000);
+	memset(szHypervisorVendor, 0, sizeof(szHypervisorVendor));
+	memcpy(szHypervisorVendor, CPUInfo + 1, 12);
+
+	for (int i = 0; i < dwlength; i++)
+	{
+		if (_tcscmp(ascii_to_wide_str(szHypervisorVendor), szBlacklistedHypervisors[i]) == 0)
+			return TRUE;
+	}
+
+	return FALSE;
+}

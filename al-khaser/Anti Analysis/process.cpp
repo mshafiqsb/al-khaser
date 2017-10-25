@@ -16,8 +16,8 @@ VOID analysis_tools_process()
 		_T("procmon.exe"),			// Part of Sysinternals Suite
 		_T("regmon.exe"),			// Part of Sysinternals Suite
 		_T("procexp.exe"),			// Part of Sysinternals Suite
-		_T("idag.exe"),				// IDA Pro Interactive Disassembler
-		_T("idag.exe"),				// IDA Pro Interactive Disassembler
+		_T("idaq.exe"),				// IDA Pro Interactive Disassembler
+		_T("idaq64.exe"),			// IDA Pro Interactive Disassembler
 		_T("ImmunityDebugger.exe"), // ImmunityDebugger
 		_T("Wireshark.exe"),		// Wireshark packet sniffer
 		_T("dumpcap.exe"),			// Network traffic dump tool
@@ -38,10 +38,11 @@ VOID analysis_tools_process()
 	WORD iLength = sizeof(szProcesses) / sizeof(szProcesses[0]);
 	for (int i = 0; i < iLength; i++)
 	{
-		_tprintf(TEXT("[*] Checking process of malware analysis tool: %s: "), szProcesses[i]);
+		TCHAR msg[256] = _T("");
+		_stprintf_s(msg, sizeof(msg) / sizeof(TCHAR), _T("Checking process of malware analysis tool: %s: "), szProcesses[i]);
 		if (GetProcessIdFromName(szProcesses[i]))
-			print_detected();
+			print_results(TRUE, msg);
 		else
-			print_not_detected();
+			print_results(FALSE, msg);
 	}
 }
